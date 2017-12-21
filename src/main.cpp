@@ -101,6 +101,7 @@ int main() {
           double psi = j[1]["psi"];
           
           // The current velocity in mph.
+          // TODO_Reviewer: mps is better
           double v = j[1]["speed"];
 
           /*
@@ -122,6 +123,7 @@ int main() {
           Eigen::VectorXd ptsx_car_coord(ptsx.size());
           Eigen::VectorXd ptsy_car_coord(ptsy.size());
           
+          // TODO_Reviewer: Use a method
           for (int i = 0; i < ptsx.size(); i++) {
             double dx = ptsx[i] - px;
             double dy = ptsy[i] - py;
@@ -132,32 +134,33 @@ int main() {
           // fit a polynomial to the above x and y coordinates. Use 3rd degree polynomial since it is not a straight line
           auto coeffs = polyfit(ptsx_car_coord, ptsy_car_coord, 3);
           
-          
-          // NOTE: free feel to play around with these
-          double x = -1;
-          double y = 10;
-          double psi_ = 0;
+          // calculate the cross track error
+          // The cross track error is calculated by evaluating at polynomial at x, f(x)
+          // and subtracting y.
+          double cte0 = polyeval(coeffs, 0);
           
           // calculate the cross track error
           // The cross track error is calculated by evaluating at polynomial at x, f(x)
           // and subtracting y.
-          double cte = polyeval(coeffs, x) - y;
+          double epsi0 = - atan(coeffs[1]);
           
-          // calculate the orientation error
-          // Due to the sign starting at 0, the orientation error is -f'(x).
-          // derivative of coeffs[0] + coeffs[1] * x -> coeffs[1]
-          double epsi = psi_ - atan(coeffs[1]);
+          //Not really necessary, but looks better to match the equations
+          const double x0   = 0;
+          const double y0   = 0;
+          const double psi0 = 0;
           
-          double latency_dt = 0.1;
-          const double Lf = 2.67;
-          x = x+1;
-          y = y-10;
-          v = v + throttle_value * latency_dt;
-          cte = cte + v * sin(epsi) * latency_dt;
-          epsi = epsi + v * steer_value / Lf * latency_dt;
+          const double latency_dt = 0.1;
+          const double Lf = 2.67; //TODO: Use the value from mpc instead of redefining
+          
+          double x1    = x0 + v * cos(psi0) * latency_dt;
+          double y1    = y0 + v * sin(psi0) * latency_dt;
+          double v1    = v + throttle_value * latency_dt;
+          double cte1  = cte0 + v * sin(epsi0) * latency_dt;
+          double psi1  = psi0 + (v/Lf) * -1*steer_value * latency_dt;
+          double epsi1 = epsi0 + (v/Lf) * -1*steer_value * latency_dt;
 
           Eigen::VectorXd state(6);
-          state << x, y, psi_, v, cte, epsi;
+          state << x1, y1, psi1, v1, cte1, epsi1;
           
           auto vars = mpc.Solve(state, coeffs);
           
@@ -166,8 +169,8 @@ int main() {
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
           steer_value    = -1 * (vars[0]/deg2rad(25));
-          throttle_value = vars[1];
-          
+          throttle_value = vars[1];          
+
           msgJson["steering_angle"] = steer_value;
           msgJson["throttle"]       = throttle_value;
 
