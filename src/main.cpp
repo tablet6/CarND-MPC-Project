@@ -148,11 +148,18 @@ int main() {
           // derivative of coeffs[0] + coeffs[1] * x -> coeffs[1]
           double epsi = psi_ - atan(coeffs[1]);
           
+          double latency_dt = 0.1;
+          const double Lf = 2.67;
+          x = x+1;
+          y = y-10;
+          v = v + throttle_value * latency_dt;
+          cte = cte + v * sin(epsi) * latency_dt;
+          epsi = epsi + v * steer_value / Lf * latency_dt;
+
           Eigen::VectorXd state(6);
-          state << x+1, y-10, psi_, v, cte, epsi;
+          state << x, y, psi_, v, cte, epsi;
           
           auto vars = mpc.Solve(state, coeffs);
-          
           
           json msgJson;
           
@@ -190,7 +197,7 @@ int main() {
             next_x_vals.push_back(ptsx_car_coord[i]);
             next_y_vals.push_back(ptsy_car_coord[i]);
           }
-          
+
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
           
